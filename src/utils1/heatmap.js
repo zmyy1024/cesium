@@ -20,7 +20,7 @@
 // })("h337", this, function () {
 // Heatmap Config stores default values and will be merged with instance config
 var HeatmapConfig = {
-  defaultRadius: 20,
+  defaultRadius: 4,
   defaultRenderer: "canvas2d",
   defaultGradient: {
     0.3: "rgb(0,0,255)",

@@ -60,7 +60,8 @@ export class CesiumHeatmap {
       };
 
       const defaultOptions = {
-        maxOpacity: 0.9,
+        // maxOpacity: 0.9,
+        maxOpacity: 1,
         // radius: minRadius,
         // minimum opacity. any value > 0 will produce
         // no transparent gradient transition
@@ -68,10 +69,28 @@ export class CesiumHeatmap {
         gradient: {
           // enter n keys between 0 and 1 here
           // for gradient color customization
-          ".3": "blue",
-          ".4": "green",
+          // ".3": "blue",
+          // ".4": "green",
+          // ".7": "yellow",
+          // ".95": "red",
+          // ".6":"rgb(0,125,255)",
+
+
+          ".2":"rgb(0,125,255)",
+          ".5": "green",
           ".7": "yellow",
-          ".95": "red",
+          "1": "red",
+
+          // "0":"#800080",
+          // "0.6":"#0000FF",
+          // "0.65":"#0080FF",
+          // "0.7":"#00FFFF",
+          // "0.75":"00FF80",
+          // "0.8":"#00FF00",
+          // "0.85":"#80FF00",
+          // "0.9":"#FFFF00",
+          // "0.95":"#FF8000",
+          // "1":"#FF0000"
         },
       };
       const _options = this.initOptions.heatmapOptions

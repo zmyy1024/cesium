@@ -108,7 +108,7 @@ onMounted(() => {
 
   const manager = new ModelManager(viewer);
 
-  const ws = new WebSocketClient("ws://localhost:8080/ws?client=vue",
+  const ws = new WebSocketClient("ws://192.168.1.4:8080/ws?client=vue",
   {
     onOpen:() => {
       console.log("✅连接成功！");
@@ -261,13 +261,66 @@ onMounted(() => {
       });
     }
     
-  } else if (res.type == 2) {
+  } else if (res.type == 3) {
     // 新的if分支示例 - 您可以在这里添加type为3的处理逻辑
-    console.log("收到类型3的消息", res);
+    connectList = res.msg;
+    res.msg.forEach(item => {
+      manager.disconncetAllFor(item.eentityId);
+      manager.connect(item.entityId,item.childEntityIdList, {
+        text: '010101',
+        fontSize: '14px',
+        color: Cesium.Color.LIME,
+        speed: 3000,
+        spacing: 0.1
+      });
+    });
     
-  } else {
-    // 默认处理逻辑
-    console.log("收到未知类型消息", res);
+  } else if (res.type == 8) {
+    // 先移除旧的覆盖效果（如果有）
+    if (Array.isArray(coveragelist) && coveragelist.length > 0) {
+      coveragelist.forEach(item1 => {
+        if (item1.coverageType == 11) {
+          manager.removeSignalCone(item1.entityId);
+        }
+        if (item1.coverageType == 12) {
+          manager.removeUpwardDome(item1.entityId);
+          manager.removeCircleWave(item1.entityId);
+        }
+      });
+    }
+
+    // 更新本地缓存并渲染新的覆盖效果
+    coveragelist = Array.isArray(res.msg) ? res.msg : [];
+    console.log("收到覆盖范围信息", res);
+    coveragelist.forEach(item => {
+      if (item.coverageType == 11) {
+        manager.addSignalCone(item.entityId, {
+          height: item.height * 3 + 10,
+          color: Cesium.Color.WHITE,
+          bottomRadius: item.radius,
+          ringCount: 2,
+          ringSpeed: 10000,
+          coneOpacity: 0.15,
+          ringOpacity: 0.1
+        });
+      }
+      if (item.coverageType == 12) {
+        manager.addUpwardDome(item.entityId, {
+          radius: item.radius,
+          height: item.radius,
+          color: Cesium.Color.YELLOW,
+          ringCount: 0,
+          ringSpeed: 5000,
+          ringOpacity: 0.2,
+          domeOpacity: 0.2
+        });
+        manager.addCircleWave(item.entityId, {
+          color: "rgb(0, 255, 0)",
+          maxRadius: item.radius,
+          duration: 7000
+        });
+      }
+    });
   }
 },
 onError: (error) => {
