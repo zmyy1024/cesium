@@ -105,8 +105,136 @@ onMounted(() => {
   // }));
   let cesiumHeatmap = null;
   let coveragelist = [];
+  let connectList = [];
 
   const manager = new ModelManager(viewer);
+
+  // 添加点击事件处理
+  const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  handler.setInputAction((event) => {
+    // 使用 drillPick 获取所有被点击的对象，包括被遮挡的
+    const pickedObjects = viewer.scene.drillPick(event.position);
+    
+    if (pickedObjects.length > 0) {
+      // 遍历所有被点击的对象，找到模型实体
+      for (let i = 0; i < pickedObjects.length; i++) {
+        const pickedObject = pickedObjects[i];
+        if (Cesium.defined(pickedObject) && pickedObject.id) {
+          const entity = pickedObject.id;
+          const entityId = entity.id;
+          
+          // 检查是否是覆盖范围信息中的模型
+          const coverageInfo = coveragelist.find(item => item.entityId == entityId);
+          if (coverageInfo) {
+            showEntityInfo(entity, coverageInfo, event.position);
+            break; // 找到模型后停止搜索
+          }
+        }
+      }
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  // 显示实体信息框
+  function showEntityInfo(entity, coverageInfo, clickPosition) {
+    // 移除之前的信息框
+    const existingInfoBox = document.getElementById('entity-info-box');
+    if (existingInfoBox) {
+      existingInfoBox.remove();
+    }
+
+    // 将屏幕坐标转换为页面坐标
+    const canvas = viewer.scene.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const x = clickPosition.x + rect.left;
+    const y = clickPosition.y + rect.top;
+
+    // 创建信息框
+    const infoBox = document.createElement('div');
+    infoBox.id = 'entity-info-box';
+    infoBox.style.cssText = `
+      position: fixed;
+      left: ${x + 20}px;
+      top: ${y - 10}px;
+      background: rgba(0, 0, 0, 0.95);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #00ffff;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+      z-index: 1000;
+      min-width: 280px;
+      max-width: 350px;
+      font-family: 'Microsoft YaHei', sans-serif;
+      font-size: 14px;
+    `;
+
+    const { A, B, C, D, E, F } = coverageInfo;
+
+    let content = `
+      <div style="text-align: center; margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 8px;">
+        <h3 style="margin: 0; color: #00ffff; font-size: 16px;">${coverageInfo.entityName || entity.name || '未知设备'}</h3>
+        <p style="margin: 3px 0; color: #ccc; font-size: 12px;">ID: ${entity.id}</p>
+      </div>
+      
+      <div style="margin-bottom: 12px;">
+        <h4 style="color: #00ffff; margin: 0 0 8px 0; font-size: 14px;">信号质量分布</h4>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #00ff00;">优 (A):</span>
+          <span style="color: #00ff00; font-weight: bold;">${(A * 100).toFixed(1)}%</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #ffff00;">良 (B):</span>
+          <span style="color: #ffff00; font-weight: bold;">${(B * 100).toFixed(1)}%</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #ff8800;">中 (C):</span>
+          <span style="color: #ff8800; font-weight: bold;">${(C * 100).toFixed(1)}%</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="color: #ff0000;">差 (D):</span>
+          <span style="color: #ff0000; font-weight: bold;">${(D * 100).toFixed(1)}%</span>
+        </div>
+      </div>
+      
+        <div style="border-top: 1px solid #333; padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span>预计服务点数:</span>
+            <span style="color: #00ffff; font-weight: bold;">${F}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>实际服务点数:</span>
+            <span style="color: #00ffff; font-weight: bold;">${E}</span>
+          </div>
+        </div>
+      
+      <div style="text-align: center; margin-top: 10px;">
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="background: #00ffff; color: black; border: none; padding: 6px 15px; 
+                       border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px;">
+          关闭
+        </button>
+      </div>
+    `;
+
+    infoBox.innerHTML = content;
+    document.body.appendChild(infoBox);
+
+    // 确保信息框在屏幕范围内
+    const infoRect = infoBox.getBoundingClientRect();
+    if (infoRect.right > window.innerWidth) {
+      infoBox.style.left = `${x - infoRect.width - 20}px`;
+    }
+    if (infoRect.bottom > window.innerHeight) {
+      infoBox.style.top = `${y - infoRect.height - 10}px`;
+    }
+
+    // 点击背景关闭信息框
+    infoBox.addEventListener('click', (e) => {
+      if (e.target === infoBox) {
+        infoBox.remove();
+      }
+    });
+  }
 
   const ws = new WebSocketClient("ws://192.168.1.4:8080/ws?client=vue",
   {
@@ -263,20 +391,21 @@ onMounted(() => {
     
   } else if (res.type == 3) {
     // 新的if分支示例 - 您可以在这里添加type为3的处理逻辑
-    connectList = res.msg;
-    res.msg.forEach(item => {
-      manager.disconncetAllFor(item.eentityId);
-      manager.connect(item.entityId,item.childEntityIdList, {
-        text: '010101',
-        fontSize: '14px',
-        color: Cesium.Color.LIME,
-        speed: 3000,
-        spacing: 0.1
-      });
-    });
+     connectList = res.msg;
+     res.msg.forEach(item => {
+       manager.disconnectAllFor(item.entityId);
+       manager.connect(item.entityId,item.childEntityIdList, {
+         text: '010101',
+         fontSize: '14px',
+         color: Cesium.Color.LIME,
+         speed: 3000,
+         spacing: 0.1
+       });
+     });
     
   } else if (res.type == 8) {
     // 先移除旧的覆盖效果（如果有）
+    console.log("收到覆盖范围信息", res);
     if (Array.isArray(coveragelist) && coveragelist.length > 0) {
       coveragelist.forEach(item1 => {
         if (item1.coverageType == 11) {
