@@ -15,6 +15,7 @@ class ModelManager {
         this.timer = null;
         this.signalCones = new Map();
         this.signalDomes = new Map();
+        this.upwardDomes = new Map(); // 添加缺失的upwardDomes初始化
         this.circleWaves = new Map();
         this.signalWaveConesWithTarget = new Map();  // 新增一个Map来管理带目标的信号波锥
     }
@@ -42,7 +43,6 @@ class ModelManager {
     getProperties(id) {
         const entity = this.entities.get(id);
         if (!entity) {
-            console.warn(`[ModelManager] 未找到实体 ${id}`);
             return null;
         }
         const props = {};
@@ -56,6 +56,26 @@ class ModelManager {
 
     getEntityById(id) {
         return this.entities.get(id) || null;
+    }
+
+    // 新增：根据名称查找实体
+    getEntityByName(name) {
+        for (const [id, entity] of this.entities) {
+            if (entity.name === name) {
+                return { id, entity };
+            }
+        }
+        return null;
+    }
+
+    // 新增：根据名称模糊匹配查找实体
+    findEntityByNamePattern(pattern) {
+        for (const [id, entity] of this.entities) {
+            if (entity.name && entity.name.includes(pattern)) {
+                return { id, entity };
+            }
+        }
+        return null;
     }
 
     getAllEntities() {
@@ -242,28 +262,26 @@ class ModelManager {
     addUpwardDome(id, options = {}) {
         const entity = this.entities.get(id);
         if (!entity) {
-            console.warn(`[ModelManager] addUpwardDome: 实体 ${id} 不存在`);
             return;
         }
         this.removeUpwardDome(id);
-        const domeObj = createUpwardSignalDome(this.viewer, entity, options);
-        if (domeObj) {
-            this.signalDomes.set(id, domeObj);
+        const dome = createUpwardSignalDome(this.viewer, entity, options);
+        if (dome) {
+            this.upwardDomes.set(id, dome);
         }
     }
 
     removeUpwardDome(id) {
-        const domeObj = this.signalDomes.get(id);
+        const domeObj = this.upwardDomes.get(id);
         if (domeObj && typeof domeObj.destroy === 'function') {
             domeObj.destroy();
         }
-        this.signalDomes.delete(id);
+        this.upwardDomes.delete(id);
     }
 
     addCircleWave(id, options = {}) {
         const entity = this.entities.get(id);
         if (!entity) {
-            console.warn(`[ModelManager] addCircleWave: 实体 ${id} 不存在`);
             return;
         }
         this.removeCircleWave(id);
@@ -281,7 +299,6 @@ class ModelManager {
     startEntityFollow(id, targetPositionRef, intervalMs = 1000) {
         const entity = this.entities.get(id);
         if (!entity) {
-            console.warn(`[ModelManager] startEntityFollow: 实体 ${id} 不存在`);
             return;
         }
         startModelMoverToFixedTarget(this.viewer, entity, targetPositionRef, intervalMs);

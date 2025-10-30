@@ -76,7 +76,8 @@ export class CesiumHeatmap {
           // ".6":"rgb(0,125,255)",
 
 
-          ".2":"rgb(0,125,255)",
+          // ".2":"rgb(0,125,255)",
+          ".2":"white",
           ".5": "green",
           ".7": "yellow",
           "1": "red",

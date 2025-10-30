@@ -1,6 +1,5 @@
 <template>
-
-  <div id="cesiumContainer"></div> -->
+  <div id="cesiumContainer"></div>
 </template>
 <script setup>
 import {CesiumHeatmap} from '@/utils1/cesiumHeatMap.js';
@@ -11,8 +10,9 @@ import { entitiesLngLatList } from '@/utils/lnglatList.js';
 import { addCustomEntityModel } from '@/utils/addCustomEntityModel.js'
 import ModelManager from '@/utils/ModelManager.js'
 import Top from "./components/top.vue";
-import HudTableBox from '@/components/HudTableBox.vue';
-import { ref } from 'vue';
+
+// 将manager定义为全局变量
+let manager = null;
 
 onMounted(() => {
 
@@ -107,7 +107,7 @@ onMounted(() => {
   let coveragelist = [];
   let connectList = [];
 
-  const manager = new ModelManager(viewer);
+  manager = new ModelManager(viewer);
 
   // 添加点击事件处理
   const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -235,8 +235,9 @@ onMounted(() => {
       }
     });
   }
-
-  const ws = new WebSocketClient("ws://192.168.1.4:8080/ws?client=vue",
+// 172.18.24.21
+// 172.18.8.82
+  const ws = new WebSocketClient("ws://172.18.10.65:8080/ws?client=vue",
   {
     onOpen:() => {
       console.log("✅连接成功！");
@@ -280,7 +281,7 @@ onMounted(() => {
         const terminalDeviceList = Array.isArray(res.msg?.terminalDeviceList) ? res.msg.terminalDeviceList : [];
 
         const baseStationIDList = baseStationList.map(item => {
-          if (item.entityModel === '无人艇' || item.entityModel === '无人通信艇') {
+          if (item.entityModel === '无人艇' || item.entityModel === '无人通信艇'|| item.entityModel ==='小船') {
             manager.add({
               id: item.entityId,
               name: item.entityName,
@@ -291,7 +292,8 @@ onMounted(() => {
               },
               modelType: 'CCV'
             });
-          } else if (item.entityModel == '中空无人机' || item.entityModel == '中空通信无人机') {
+          } 
+          else if (item.entityModel == '中空无人机' || item.entityModel == '中空通信无人机'|| item.entityModel == '中型飞机') {
             manager.add({
               id: item.entityId,
               name: item.entityName,
@@ -302,7 +304,7 @@ onMounted(() => {
               },
               modelType: 'MUAV'
             });
-          } else if (item.entityModel == '高空无人机' || item.entityModel == '高空通信无人机') {
+          } else if (item.entityModel == '高空无人机' || item.entityModel == '高空通信无人机'|| item.entityModel =='大型飞机') {
             manager.add({
               id: item.entityId,
               name: item.entityName,
@@ -312,6 +314,29 @@ onMounted(() => {
                 height: item.height * 3
               },
               modelType: 'HUAV'
+            });
+          }else if (item.entityModel == '中型步战车' || item.entityModel == 'SUV') {
+            manager.add({
+              id: item.entityId,
+              name: item.entityName,
+              position: {
+                lon: item.longitude,
+                lat: item.latitude,
+                height: item.height * 3
+              },
+              modelType: 'IFV'
+            });
+          }
+          else if (item.entityModel == '小型步战车' || item.entityModel == '轿车') {
+            manager.add({
+              id: item.entityId,
+              name: item.entityName,
+              position: {
+                lon: item.longitude,
+                lat: item.latitude,
+                height: item.height * 3
+              },
+              modelType: 'IFV'
             });
           }
           return item.entityId;
@@ -331,7 +356,7 @@ onMounted(() => {
         });
 
         terminalDeviceList.forEach(item => {
-          if (item.entityModel === '无人艇' || item.entityModel === '无人通信艇') {
+          if (item.entityModel === '无人艇' || item.entityModel === '无人通信艇'|| item.entityModel === '小船') {
             baseStationIDList.push(item.entityId);
           }
           manager.add({
@@ -420,7 +445,7 @@ onMounted(() => {
 
     // 更新本地缓存并渲染新的覆盖效果
     coveragelist = Array.isArray(res.msg) ? res.msg : [];
-    console.log("收到覆盖范围信息", res);
+    
     coveragelist.forEach(item => {
       if (item.coverageType == 11) {
         manager.addSignalCone(item.entityId, {
@@ -434,20 +459,46 @@ onMounted(() => {
         });
       }
       if (item.coverageType == 12) {
-        manager.addUpwardDome(item.entityId, {
-          radius: item.radius,
-          height: item.radius,
-          color: Cesium.Color.YELLOW,
-          ringCount: 0,
-          ringSpeed: 5000,
-          ringOpacity: 0.2,
-          domeOpacity: 0.2
-        });
-        manager.addCircleWave(item.entityId, {
-          color: "rgb(0, 255, 0)",
-          maxRadius: item.radius,
-          duration: 7000
-        });
+        // 首先尝试通过ID查找实体
+        let targetEntityId = item.entityId;
+        let entity = manager.getEntityById(targetEntityId);
+        
+        // 如果通过ID找不到，尝试通过名称查找
+        if (!entity && item.entityName) {
+          const nameResult = manager.getEntityByName(item.entityName);
+          if (nameResult) {
+            targetEntityId = nameResult.id;
+            entity = nameResult.entity;
+          }
+        }
+        
+        // // 如果还是找不到，尝试模糊匹配（比如SUV-1匹配SUV）
+        // if (!entity && item.entityName) {
+        //   const baseName = item.entityName.split('-')[0]; // 提取基础名称，如"SUV-1" -> "SUV"
+        //   const patternResult = manager.findEntityByNamePattern(baseName);
+        //   if (patternResult) {
+        //     targetEntityId = patternResult.id;
+        //     entity = patternResult.entity;
+        //   }
+        // }
+        
+        if (entity) {
+          manager.addUpwardDome(targetEntityId, {
+            radius: item.radius,
+            height: item.radius,
+            color: Cesium.Color.YELLOW,
+            ringCount: 3,
+            ringSpeed: 5000,
+            ringOpacity: 0.3,
+            domeOpacity: 0.3
+          });
+          manager.addCircleWave(targetEntityId, {
+            color: "rgb(0, 255, 0)",
+            maxRadius: item.radius,
+            duration: 7000,
+            count: 3
+          });
+        }
       }
     });
   }
